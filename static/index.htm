@@ -27,7 +27,7 @@
     <div id="sfmap">
 
         <svg id="sfsvg" height="500" width="500"></svg>
-        <svg id="info" height="190" width="400" style="border:1px solid rgb(211, 210, 210)"></svg>
+        <svg id="info" height="210" width="400" style="border:1px solid rgb(211, 210, 210)"></svg>
 
     </div>
     <section>
@@ -341,25 +341,31 @@
                         .attr("x", 15)
                         .attr("y", 50)
                         .attr("text-anchor", "left")
-                        .text("Higher Opacity ∝ Older Plant Date");
+                        .text("Each circle represents one tree");
                     infosvg.append("text")
                         .attr("class", "info-chart-title")
                         .attr("x", 15)
                         .attr("y", 70)
+                        .attr("text-anchor", "left")
+                        .text("Higher Opacity ∝ Older Plant Date");
+                    infosvg.append("text")
+                        .attr("class", "info-chart-title")
+                        .attr("x", 15)
+                        .attr("y", 90)
                         .attr("text-anchor", "left")
                         .text("Bigger radius ∝ Bigger DBH (Diameter Breast Height)");
 
                     for (g = 0; g < genus.length; g++) {
                         infosvg.append('circle')
                             .attr('cx', 25)
-                            .attr('cy', 90 + g * 20)
+                            .attr('cy', 110 + g * 20)
                             .attr('r', 5)
                             .attr('opacity', 0.8)
                             .style('fill', genusScale(genus[g]))
                         infosvg.append("text")
                             .attr("class", "genus-names")
                             .attr("x", 35)
-                            .attr("y", 95 + g * 20)
+                            .attr("y", 115 + g * 20)
                             .attr("text-anchor", "left")
                             .text(genus[g]);
                     }
@@ -369,11 +375,11 @@
                         .attr("fill", "white")
                         .attr("stroke", "black")
                         .attr("stroke-width", "0.3px")
-                        .attr("transform", "translate(" + 25 + "," + 170 + ")");
+                        .attr("transform", "translate(" + 25 + "," + 190 + ")");
                     infosvg.append("text")
                         .attr("class", "genus-names")
                         .attr("x", 35)
-                        .attr("y", 175)
+                        .attr("y", 195)
                         .attr("text-anchor", "left")
                         .text("Famous Establishments");
                 })
