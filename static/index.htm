@@ -5,19 +5,382 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://d3js.org/topojson.v3.min.js"></script>
     <style>
-        svg#choropleth {
+        svg#sfsvg {
             fill: None;
+        }
+
+        .gridlines line {
+            stroke: #bbb;
+        }
+
+        .gridlines .domain {
+            stroke: none;
         }
     </style>
 </head>
 
 <body>
     <h3>
-        Leina Li (ll736) :3
+        Leina Li (ll736)
     </h3>
+    <h1 id="sfmapTitle">Map of the Top Four Most Common Tree Genus in San Francisco</h1>
+    <div id="sfmap">
+
+        <svg id="sfsvg" height="500" width="500"></svg>
+        <svg id="info" height="190" width="400" style="border:1px solid rgb(211, 210, 210)"></svg>
+
+    </div>
+    <section>
+        <div id="chartContainer">
+            <svg id="prunus" height="300" width="300"></svg>
+            <svg id="platanus" height="300" width="300"></svg>
+            <svg id="ficus" height="300" width="300"></svg>
+            <svg id="pittosporum" height="300" width="300"></svg>
+        </div>
+        <div id="tableContainer">
+            <svg id="tableprunus" height="400" width="300"></svg>
+            <svg id="tableplatanus" height="400" width="300"></svg>
+            <svg id="tableficus" height="400" width="300"></svg>
+            <svg id="tablepittosporum" height="400" width="300"></svg>
+        </div>
+
+    </section>
 
 
+    <script>
+        const sfsvg = d3.select("svg#sfsvg");
+        width = sfsvg.attr("width");
+        height = sfsvg.attr("height");
+        const margin = { top: 10, right: 10, bottom: 10, left: 10 };
+        const mapWidth = width - margin.left - margin.right;
+        const mapHeight = height - margin.top - margin.bottom;
 
+        const requestData = async function () {
+            const sfneighbor = await d3.json("./SF-Neighborhoods.geo.json")
+            var neigh = topojson.feature(sfneighbor, sfneighbor.objects.SFNeighborhoods)
+            var neighMesh = topojson.mesh(sfneighbor, sfneighbor.objects.SFNeighborhoods)
+            var projection = d3.geoMercator().fitSize([mapWidth, mapHeight], neigh);
+            var path = d3.geoPath().projection(projection);
+
+            let sfmap = sfsvg.append("g").attr("id", "sfmap");
+            let neighborPaths = sfmap.selectAll("path.neighbors").data(neigh.features)
+                .join("path")
+                .attr("class", "neighbors")
+                .attr("d", path)
+                .style("fill", "black");
+
+            let neighborPath = sfmap.append("path").datum(neighMesh)
+                .attr("class", "outline")
+                .attr("d", path)
+                .style("stroke", "white")
+                .attr("class", "neighbor-outline")
+                .style("stroke-width", 1);
+
+            d3.csv('./Street_Tree_Filtered.csv', d3.autoType)
+                .then((data) => {
+
+                    const dbhExtent = d3.extent(data, d => d['DBH']);
+                    const dbhScale = d3.scaleLinear().domain(dbhExtent).range([2, 20]);
+
+                    const cutOffDate = new Date(2024, 0, 1);
+                    const timeParser = d3.timeParse("%m/%d/%y %H:%M");
+
+                    // Fixing year problem where %y = 56 is interpreted as 2056...
+                    data.forEach(function (d) {
+                        const date = timeParser(d['PlantDate']);
+                        // Adjust two-digit years based on the cutOffDate
+                        if (date.getFullYear() > cutOffDate.getFullYear()) {
+                            date.setFullYear(date.getFullYear() - 100);
+                        }
+                        d.parsedDate = date;
+                    });
+
+                    const timeExtent = d3.extent(data, d => d.parsedDate);
+                    console.log(timeExtent);
+
+                    const timeScale = d3.scaleTime().domain(timeExtent).range([0.3, 0.8])
+
+                    // four most common genus found from treeprocess.py
+                    const genus = ['Prunus', 'Platanus', 'Ficus', 'Pittosporum'];
+                    // ["#A07A19", "#AC30C0", "#EB9A72", "#BA86F5"]
+                    const genusScale = d3.scaleOrdinal().domain(genus).range(d3.schemeTableau10)
+                    data.forEach(function (d) {
+                        const name = d['qSpecies'].split(" ")
+                        d.genus = name[0];
+                    });
+
+                    console.log(data);
+                    sfsvg.selectAll("circle").data(data)
+                        .join("circle")
+                        .attr("cx", d => projection([d['Longitude'], d['Latitude']])[0])
+                        .attr("cy", d => projection([d['Longitude'], d['Latitude']])[1])
+                        .attr("r", d => dbhScale(d['DBH']))
+                        .attr("opacity", d => timeScale(d.parsedDate))
+                        .attr("fill", d => genusScale(d.genus));
+
+                    // Acquired from https://www.sftravel.com/article/7-arts-culture-neighborhood-maps-to-help-you-explore-san-francisco and Google Maps
+                    popular_spots = { "Civic Center Plaza": [-122.4177026, 37.77958519], "Dog Patch": [-122.38995171434584, 37.76011425657375], "Fillmore District": [-122.43047276777084, 37.78072652887394], "Golden Gate Park": [-122.48617258145907, 37.76982799388827], "Mission District": [-122.41733543720963, 37.76343098071011], "Union Square": [-122.40656143007054, 37.787552291629794], "Yerba Buena": [-122.40249709214311, 37.78496883905332] }
+
+                    for (const key in popular_spots) {
+                        let spot = projection(popular_spots[key])
+                        // console.log(popular_spots[key])
+                        // console.log(spot)
+
+                        // sfsvg.append("circle")
+                        //     .attr("r", 5)
+                        //     .attr("fill", "white")
+                        //     .attr("opacity", 1)
+                        //     .attr("cx", spot[0])
+                        //     .attr("cy", spot[1]);
+
+                        var symbolGenerator = d3.symbol()
+                            .type(d3.symbolStar)
+                            .size(60);
+                        sfsvg.append("path")
+                            .attr("d", symbolGenerator)
+                            .attr("fill", "white")
+                            .attr("stroke", "black")
+                            .attr("stroke-width", "0.1px")
+                            .attr("transform", "translate(" + spot[0] + "," + spot[1] + ")");
+
+                        if (key == "Union Square" || key == "Fillmore District") {
+                            sfsvg.append("text")
+                                .attr("class", "spot-labels")
+                                .attr("x", spot[0])
+                                .attr("y", spot[1] - 6)
+                                .attr("text-anchor", "middle")
+                                .style("fill", "white")
+                                .style("stroke", "black")
+                                .style("stroke-width", "0.1px")
+                                .style("font-size", "10px")
+                                .style("font-family", "Arial")
+                                .style("font-weight", "bold")
+                                .text(key);
+                        }
+                        else {
+                            sfsvg.append("text")
+                                .attr("class", "spot-labels")
+                                .attr("x", spot[0])
+                                .attr("y", spot[1] + 13)
+                                .attr("text-anchor", "middle")
+                                .style("fill", "white")
+                                .style("stroke", "black")
+                                .style("stroke-width", "0.1px")
+                                .style("font-size", "10px")
+                                .style("font-family", "Arial")
+                                .style("font-weight", "bold")
+                                .text(key);
+                        }
+                    }
+
+                    function graph_maker(svgname, genus, data) {
+                        // data.forEach(function (d) {
+                        //     d.plotsize = d['PlotSize'][0]
+                        // });
+
+                        const svg = d3.select(svgname);
+                        const width = svg.attr('width');
+                        const height = svg.attr('height');
+                        const margins = { top: 35, right: 20, bottom: 53, left: 70 };
+                        const chartWidth = width - margins.left - margins.right;
+                        const chartHeight = height - margins.top - margins.bottom
+                        let chartArea = svg.append('g')
+                            .attr('transform', `translate(${margins.left}, ${margins.top})`);
+
+                        const DBHScale = d3.scaleLinear().domain(dbhExtent).range([0, chartWidth]);
+                        const yearScale = d3.scaleLinear().domain(timeExtent).range([chartHeight, 0]);
+
+                        let leftAxis = d3.axisLeft(yearScale)
+                            .tickFormat(d3.timeFormat("%Y"))
+                        svg.append('g')
+                            .attr('class', 'y axis')
+                            .attr('transform', `translate(${margins.left - 10},${margins.top})`)
+                            .call(leftAxis);
+
+                        let bottomAxis = d3.axisBottom(DBHScale)
+                            .tickFormat(d3.format(".0f"))
+                            .ticks(5);
+                        let element = svg.append('g')
+                            .attr('class', 'y axis')
+                            .attr('transform', `translate(${margins.left},${chartHeight + margins.top + 10})`)
+                            .call(bottomAxis);
+
+                        let leftGridlines = d3.axisLeft(yearScale)
+                            .tickSize(-chartWidth - 10)
+                            .tickFormat('');
+                        svg.append('g').attr('class', 'gridlines')
+                            .attr('transform', `translate(${margins.left - 10},${margins.top})`)
+                            .call(leftGridlines)
+
+                        let bottomGridlines = d3.axisBottom(DBHScale)
+                            .tickSize(-chartHeight - 10)
+                            .tickFormat('')
+                            .ticks(5);
+                        svg.append('g').attr('class', 'gridlines')
+                            .attr('transform', `translate(${margins.left},${chartHeight + margins.top + 10})`)
+                            .call(bottomGridlines);
+
+                        data.forEach((d, i) => {
+                            if ((d["qSpecies"].split(" ")[0]) == genus) {
+                                chartArea.append('circle')
+                                    .attr('cx', DBHScale(d['DBH']))
+                                    .attr('cy', yearScale(d.parsedDate))
+                                    .attr('r', dbhScale(d['DBH']))
+                                    .attr('opacity', 0.3)
+                                    .style('fill', genusScale(d.genus))
+                            }
+                        })
+                        chartArea.raise()
+
+                        svg.append("text")
+                            .attr("class", "x-axis-title")
+                            .attr("x", width / 2 + 20)
+                            .attr("y", height - 10)
+                            .attr("text-anchor", "middle")
+                            .text("Diameter Breast Height");
+
+
+                        svg.append("text")
+                            .attr("class", "y-axis-title")
+                            .attr("transform", "rotate(-90)")
+                            .attr("x", -height / 2)
+                            .attr("y", 20)
+                            .attr("text-anchor", "middle")
+                            .text("Year Planted");
+
+                        svg.append("text")
+                            .attr("class", "chart-title")
+                            .attr("x", width / 2)
+                            .attr("y", 20)
+                            .attr("text-anchor", "middle")
+                            .style("font-weight", "bold")
+                            .style("fill", genusScale(genus))
+                            .text("The Diameter Breast Height of " + genus);
+
+                    }
+
+                    graph_maker("svg#prunus", "Prunus", data)
+
+                    graph_maker("svg#platanus", "Platanus", data)
+
+                    graph_maker("svg#ficus", "Ficus", data)
+
+                    graph_maker("svg#pittosporum", "Pittosporum", data)
+
+
+                    function tablemaker(data, svgname, genus, lst) {
+                        data.forEach((d, i) => {
+                            if ((d["qSpecies"].split(" ")[0]) == genus) {
+                                const spec = d["qSpecies"].split('::')[0]
+                                // console.log(spec)
+                                if (!lst.includes(spec)) {
+                                    lst.push(spec)
+                                }
+                            }
+                        })
+
+                        speciesTable = d3.select(svgname);
+                        let width = speciesTable.attr("width")
+                        let height = speciesTable.attr("height")
+
+                        speciesTable.append("text")
+                            .attr("class", "genus")
+                            .attr("x", width / 2)
+                            .attr("y", 25)
+                            .attr("text-anchor", "middle")
+                            .style("font-weight", "bold")
+                            .style("font-size", "20px")
+                            .style("fill", genusScale(genus))
+                            .text("Species in genus: " + genus);
+
+                        speciesTable.append("line")
+                            .attr("x1", 20)
+                            .attr("x2", width - 20)
+                            .attr("y1", 30)
+                            .attr("y2", 30)
+                            .style("stroke", "gray")
+                            .style("stroke-width", 1)
+
+                        for (q = 0; q < lst.length; q++) {
+                            speciesTable.append("text")
+                                .attr("class", "species-list")
+                                .attr("x", width / 2)
+                                .attr("y", 45 + 20 * q)
+                                .attr("text-anchor", "middle")
+                                .text(lst[q]);
+                        }
+
+                    }
+
+                    prunus = [];
+                    tablemaker(data, "svg#tableprunus", "Prunus", prunus);
+
+                    platanus = [];
+                    tablemaker(data, "svg#tableplatanus", "Platanus", platanus);
+
+                    ficus = [];
+                    tablemaker(data, "svg#tableficus", "Ficus", ficus);
+
+                    pittosporum = []
+                    tablemaker(data, "svg#tablepittosporum", "Pittosporum", pittosporum);
+
+                    // For legend
+                    const infosvg = d3.select("svg#info");
+                    const infoWidth = infosvg.attr("width")
+                    const infoHeight = infosvg.attr("height")
+                    infosvg.append("text")
+                        .attr("class", "info-chart-title")
+                        .attr("x", 15)
+                        .attr("y", 25)
+                        .attr("text-anchor", "left")
+                        .style("font-weight", "bold")
+                        .style("font-size", "20px")
+                        .text("Legend");
+                    infosvg.append("text")
+                        .attr("class", "info-chart-title")
+                        .attr("x", 15)
+                        .attr("y", 50)
+                        .attr("text-anchor", "left")
+                        .text("Higher Opacity ∝ Older Plant Date");
+                    infosvg.append("text")
+                        .attr("class", "info-chart-title")
+                        .attr("x", 15)
+                        .attr("y", 70)
+                        .attr("text-anchor", "left")
+                        .text("Bigger radius ∝ Bigger DBH (Diameter Breast Height)");
+
+                    for (g = 0; g < genus.length; g++) {
+                        infosvg.append('circle')
+                            .attr('cx', 25)
+                            .attr('cy', 90 + g * 20)
+                            .attr('r', 5)
+                            .attr('opacity', 0.8)
+                            .style('fill', genusScale(genus[g]))
+                        infosvg.append("text")
+                            .attr("class", "genus-names")
+                            .attr("x", 35)
+                            .attr("y", 95 + g * 20)
+                            .attr("text-anchor", "left")
+                            .text(genus[g]);
+                    }
+
+                    infosvg.append("path")
+                        .attr("d", symbolGenerator)
+                        .attr("fill", "white")
+                        .attr("stroke", "black")
+                        .attr("stroke-width", "0.3px")
+                        .attr("transform", "translate(" + 25 + "," + 170 + ")");
+                    infosvg.append("text")
+                        .attr("class", "genus-names")
+                        .attr("x", 35)
+                        .attr("y", 175)
+                        .attr("text-anchor", "left")
+                        .text("Famous Establishments");
+                })
+        }
+        requestData();
+
+    </script>
 </body>
 
 </html>
