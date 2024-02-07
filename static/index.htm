@@ -25,10 +25,8 @@
     </h3>
     <h1 id="sfmapTitle">Map of the Top Four Most Common Tree Genus in San Francisco</h1>
     <div id="sfmap">
-
         <svg id="sfsvg" height="500" width="500"></svg>
         <svg id="info" height="210" width="400" style="border:1px solid rgb(211, 210, 210)"></svg>
-
     </div>
     <section>
         <div id="chartContainer">
@@ -45,7 +43,6 @@
         </div>
 
     </section>
-
 
     <script>
         const sfsvg = d3.select("svg#sfsvg");
@@ -102,7 +99,6 @@
 
                     // four most common genus found from treeprocess.py
                     const genus = ['Prunus', 'Platanus', 'Ficus', 'Pittosporum'];
-                    // ["#A07A19", "#AC30C0", "#EB9A72", "#BA86F5"]
                     const genusScale = d3.scaleOrdinal().domain(genus).range(d3.schemeTableau10)
                     data.forEach(function (d) {
                         const name = d['qSpecies'].split(" ")
@@ -125,13 +121,6 @@
                         let spot = projection(popular_spots[key])
                         // console.log(popular_spots[key])
                         // console.log(spot)
-
-                        // sfsvg.append("circle")
-                        //     .attr("r", 5)
-                        //     .attr("fill", "white")
-                        //     .attr("opacity", 1)
-                        //     .attr("cx", spot[0])
-                        //     .attr("cy", spot[1]);
 
                         var symbolGenerator = d3.symbol()
                             .type(d3.symbolStar)
@@ -174,10 +163,6 @@
                     }
 
                     function graph_maker(svgname, genus, data) {
-                        // data.forEach(function (d) {
-                        //     d.plotsize = d['PlotSize'][0]
-                        // });
-
                         const svg = d3.select(svgname);
                         const width = svg.attr('width');
                         const height = svg.attr('height');
@@ -369,7 +354,7 @@
                             .attr("text-anchor", "left")
                             .text(genus[g]);
                     }
-
+                    // Create star
                     infosvg.append("path")
                         .attr("d", symbolGenerator)
                         .attr("fill", "white")

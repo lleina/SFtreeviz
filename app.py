@@ -14,7 +14,7 @@ app.wsgi_app = WhiteNoise(
 
 @app.route("/", methods=["GET"])
 def hello():
-    return make_response(":3!!!!!!")
+    return make_response("Hi! append /static/ to the URL to see the visualization")
 
 
 if __name__ == "__main__":
